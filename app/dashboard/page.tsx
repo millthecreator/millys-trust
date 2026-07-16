@@ -85,6 +85,7 @@ export default function Dashboard() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Decentralised Wallet Flow
   const [decentralisedStep, setDecentralisedStep] = useState(0);
@@ -94,45 +95,52 @@ export default function Dashboard() {
     seedPhrase: Array(12).fill('')
   });
 
-  // ==================== GLOBAL AUM ====================
+  // Global AUM
   const [globalAUM, setGlobalAUM] = useState(4250000);
 
-useEffect(() => {
-  const baseValue = 4250000;
-  const lastUpdated = localStorage.getItem('millys_global_aum_date');
-  const today = new Date().toISOString().split('T')[0];
-  let currentAUM = parseFloat(localStorage.getItem('millys_global_aum') || baseValue.toString());
-
-  if (lastUpdated !== today) {
-    const dailyGrowth = Math.floor(Math.random() * 36000) + 12000;
-    currentAUM += dailyGrowth;
-    if (currentAUM > 7000000) currentAUM = 7000000;
-    localStorage.setItem('millys_global_aum', currentAUM.toString());
-    localStorage.setItem('millys_global_aum_date', today);
-  }
-  setGlobalAUM(Math.floor(currentAUM));
-}, []);
-
-  // ==================== LOAD DATA ====================
+  // ==================== LOAD DATA (CLIENT ONLY) ====================
   useEffect(() => {
+    // Only run on client
+    if (typeof window === 'undefined') return;
+
+    // Load Global AUM
+    const baseValue = 4250000;
+    const lastUpdated = localStorage.getItem('millys_global_aum_date');
+    const today = new Date().toISOString().split('T')[0];
+    let currentAUM = parseFloat(localStorage.getItem('millys_global_aum') || baseValue.toString());
+
+    if (lastUpdated !== today) {
+      const dailyGrowth = Math.floor(Math.random() * 36000) + 12000;
+      currentAUM += dailyGrowth;
+      if (currentAUM > 7000000) currentAUM = 7000000;
+      localStorage.setItem('millys_global_aum', currentAUM.toString());
+      localStorage.setItem('millys_global_aum_date', today);
+    }
+    setGlobalAUM(Math.floor(currentAUM));
+
+    // Load current user
     const userStr = localStorage.getItem('millys_current_user');
     if (!userStr) {
       router.push('/signin');
       return;
     }
+
     const user: CurrentUser = JSON.parse(userStr);
     setCurrentUser(user);
 
+    // Load linked accounts from Supabase
     const loadAccounts = async () => {
       const { data } = await supabase
         .from('linked_accounts')
         .select('*')
         .eq('user_id', user.id)
         .order('last_linked', { ascending: false });
+
       if (data) setLinkedAccounts(data);
     };
     loadAccounts();
 
+    // Load local data
     const savedHoldings = JSON.parse(localStorage.getItem(`millys_holdings_${user.id}`) || '[]');
     setHoldings(savedHoldings);
 
@@ -144,15 +152,20 @@ useEffect(() => {
 
     const savedGoogle2FA = localStorage.getItem(`millys_google_2fa_${user.id}`);
     if (savedGoogle2FA !== null) setGoogle2FAEnabled(savedGoogle2FA === 'true');
+
+    setIsLoading(false);
   }, [router]);
 
+  // ==================== HELPERS ====================
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('millys_current_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('millys_current_user');
+    }
     router.push('/signin');
   };
 
@@ -172,13 +185,13 @@ useEffect(() => {
 
   // ==================== HANDLERS ====================
   const saveHoldings = (newHoldings: Holding[]) => {
-    if (!currentUser) return;
+    if (!currentUser || typeof window === 'undefined') return;
     localStorage.setItem(`millys_holdings_${currentUser.id}`, JSON.stringify(newHoldings));
     setHoldings(newHoldings);
   };
 
   const addActivity = (message: string) => {
-    if (!currentUser) return;
+    if (!currentUser || typeof window === 'undefined') return;
     const newAct: ActivityLog = {
       id: Date.now(),
       type: 'action',
@@ -387,8 +400,12 @@ useEffect(() => {
   const firstName = currentUser?.name?.split(' ')[0] || '';
   const isSuperAdmin = currentUser?.email?.toLowerCase().trim() === 'admin@millystrust.com';
 
-  if (!currentUser) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">Loading secure session...</div>;
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        Loading secure session...
+      </div>
+    );
   }
 
   return (
@@ -452,7 +469,6 @@ useEffect(() => {
 
         {/* Main Content */}
         <div className="flex-1 p-6 lg:p-8 overflow-auto w-full">
-
           {/* OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-8">
@@ -598,7 +614,11 @@ useEffect(() => {
                           </td>
                         </tr>
                       );
-                    }) : <tr><td colSpan={5} className="text-center py-12 text-slate-400">No holdings yet</td></tr>}
+                    }) : (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-slate-400">No holdings yet</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -675,7 +695,6 @@ useEffect(() => {
               </div>
 
               <div className="grid lg:grid-cols-3 gap-6">
-                {/* Users List */}
                 <div className="bg-white border border-slate-200 rounded-3xl p-6">
                   <div className="flex justify-between items-center mb-4">
                     <div className="font-semibold">All Registered Users</div>
@@ -701,7 +720,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* Selected User Details */}
                 <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-6">
                   {selectedAdminUser ? (
                     <>
@@ -756,7 +774,6 @@ useEffect(() => {
               </div>
             </div>
           )}
-
         </div>
       </div>
 
@@ -783,7 +800,6 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Decentralised Multi-Step Flow */}
             {decentralisedStep > 0 && (
               <div>
                 {decentralisedStep === 1 && (
