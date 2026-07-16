@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -100,9 +102,6 @@ export default function Dashboard() {
 
   // ==================== LOAD DATA (CLIENT ONLY) ====================
   useEffect(() => {
-    // Only run on client
-    if (typeof window === 'undefined') return;
-
     // Load Global AUM
     const baseValue = 4250000;
     const lastUpdated = localStorage.getItem('millys_global_aum_date');
@@ -163,9 +162,7 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('millys_current_user');
-    }
+    localStorage.removeItem('millys_current_user');
     router.push('/signin');
   };
 
@@ -185,13 +182,13 @@ export default function Dashboard() {
 
   // ==================== HANDLERS ====================
   const saveHoldings = (newHoldings: Holding[]) => {
-    if (!currentUser || typeof window === 'undefined') return;
+    if (!currentUser) return;
     localStorage.setItem(`millys_holdings_${currentUser.id}`, JSON.stringify(newHoldings));
     setHoldings(newHoldings);
   };
 
   const addActivity = (message: string) => {
-    if (!currentUser || typeof window === 'undefined') return;
+    if (!currentUser) return;
     const newAct: ActivityLog = {
       id: Date.now(),
       type: 'action',
