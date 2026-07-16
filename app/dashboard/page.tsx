@@ -95,23 +95,23 @@ export default function Dashboard() {
   });
 
   // ==================== GLOBAL AUM ====================
-  const getGlobalAUM = () => {
-    const baseValue = 4250000;
-    const lastUpdated = localStorage.getItem('millys_global_aum_date');
-    const today = new Date().toISOString().split('T')[0];
-    let currentAUM = parseFloat(localStorage.getItem('millys_global_aum') || baseValue.toString());
+  const [globalAUM, setGlobalAUM] = useState(4250000);
 
-    if (lastUpdated !== today) {
-      const dailyGrowth = Math.floor(Math.random() * 36000) + 12000;
-      currentAUM += dailyGrowth;
-      if (currentAUM > 7000000) currentAUM = 7000000;
-      localStorage.setItem('millys_global_aum', currentAUM.toString());
-      localStorage.setItem('millys_global_aum_date', today);
-    }
-    return Math.floor(currentAUM);
-  };
+useEffect(() => {
+  const baseValue = 4250000;
+  const lastUpdated = localStorage.getItem('millys_global_aum_date');
+  const today = new Date().toISOString().split('T')[0];
+  let currentAUM = parseFloat(localStorage.getItem('millys_global_aum') || baseValue.toString());
 
-  const globalAUM = getGlobalAUM();
+  if (lastUpdated !== today) {
+    const dailyGrowth = Math.floor(Math.random() * 36000) + 12000;
+    currentAUM += dailyGrowth;
+    if (currentAUM > 7000000) currentAUM = 7000000;
+    localStorage.setItem('millys_global_aum', currentAUM.toString());
+    localStorage.setItem('millys_global_aum_date', today);
+  }
+  setGlobalAUM(Math.floor(currentAUM));
+}, []);
 
   // ==================== LOAD DATA ====================
   useEffect(() => {
